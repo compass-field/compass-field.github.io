@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>COMPASS: Compiled Task Fields</title>
+<meta name="description" content="COMPASS bridges agentic reasoning and dexterous visuomotor policies through task fields compiled before execution.">
+<meta property="og:title" content="COMPASS: Bridging Agentic Reasoning and Dexterous Policies via Compiled Task Fields">
+<meta property="og:description" content="A VLM agent compiles a task field once; at run time the field checks every action chunk of a frozen policy, with no VLM in the control loop.">
+<meta property="og:image" content="static/img/teaser.webp">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%232a5493'/%3E%3Cpath d='M16 5l4 11-4 11-4-11z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="static/css/fonts.css">
+<link rel="stylesheet" href="static/vendor/katex/katex.min.css">
+<link rel="stylesheet" href="static/css/style.css?v=r48">
+</head>
+<body>
+
+<nav class="toc" aria-label="Sections">
+  <a href="#top">Overview</a>
+  <a href="#contrib">Contributions</a>
+  <a href="#method">Method</a>
+  <a href="#try">Interactive Field</a>
+  <a href="#rollouts">Rollouts</a>
+  <a href="#results">Experiments</a>
+  <a href="#bibtex">BibTeX</a>
+</nav>
+
+<header class="hero" id="top">
+  <h1 class="title"><span class="sc">C<small>OMPASS</small></span></h1>
+  <p class="subtitle">Bridging Agentic Reasoning and Dexterous Policies<br class="br-wide"> via Compiled Task Fields</p>
+  <p class="authors">
+    <a href="https://xshan.site">Xiaoshen Han</a><sup>1,2</sup>
+    <a href="https://scholar.google.com/citations?user=ofpwpDYAAAAJ">Jiahang Cao</a><sup>1,2</sup>
+    <a href="https://scholar.google.com/citations?user=laOWyTQAAAAJ">Xinghang Li</a><sup>2</sup>
+    <a href="https://taokong.github.io">Tao Kong</a><sup>2</sup>
+    <a href="https://scholar.google.com/citations?user=WYdaCd0AAAAJ">Hang Lai</a><sup>2&dagger;</sup>
+    <a href="https://wnzhang.net">Weinan Zhang</a><sup>1&dagger;</sup>
+  </p>
+  <p class="affils"><sup>1</sup>Shanghai Jiao Tong University &nbsp;&nbsp; <sup>2</sup>Xiaomi Robotics</p>
+  <p class="venue"><sup>&dagger;</sup>Corresponding authors</p>
+  <div class="buttons">
+    <!-- Set href and drop aria-disabled once each link exists. -->
+    <a class="btn" aria-disabled="true"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h6"/></svg>Paper (arXiv)</a>
+    <a class="btn" aria-disabled="true"><svg viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>Code (coming soon)</a>
+    <a class="btn" aria-disabled="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z"/></svg>Video</a>
+  </div>
+</header>
+
+<!-- First thing on the page: the demo video. -->
+<section class="demo">
+  <div class="video-frame" data-youtube="">
+    <video id="demo" src="media/compass_demo.mp4?v=v44" poster="media/compass_demo.jpg?v=v44"
+           playsinline preload="metadata"></video>
+    <div class="sound-badge" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>
+      With sound · narrated
+    </div>
+    <button class="bigplay" id="bigplay" type="button" aria-label="Play video with sound">
+      <span class="ring"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg></span>
+      <span class="txt">Play · 3:32</span>
+    </button>
+  </div>
+</section>
+
+<section class="wrap tldr">
+  <p>A VLM agent compiles a <b class="hl">task field</b> <b>once</b> before execution. At run time, the field evaluates and steers every action chunk of a frozen policy—with <b>zero VLM queries in the control loop</b>.</p>
+</section>
+
+<section class="wrap stats" aria-label="Key numbers">
+  <div class="stat"><div class="num"><span class="from" data-count="6.7" data-suffix="%">6.7%</span> → <span data-count="76.7" data-suffix="%">76.7%</span></div><div class="lbl">average success rate across 4 bimanual tasks</div></div>
+  <div class="stat"><div class="num"><span data-count="0">0</span></div><div class="lbl">online VLM queries during execution</div></div>
+  <div class="stat"><div class="num"><span data-count="500" data-suffix="+">500+</span></div><div class="lbl">real-robot evaluation trials</div></div>
+</section>
+
+<section class="wrap" id="abstract">
+  <h2>Abstract</h2>
+  <p>Everyday manipulation requires both reasoning and dexterity. A robot must interpret vague instructions,
+    distinguish targets from similar distractors, keep track of progress, and plan spatial arrangements, while also
+    performing precise, coordinated actions. Vision-language model (VLM) agents handle the reasoning well, but they are
+    too slow and coarse for real-time control, whereas visuomotor policies show the opposite strengths. We present
+    <span class="sc">C<small>OMPASS</small></span> (<b>COM</b>piled <b>P</b>otentials for <b>A</b>ction <b>S</b>election and
+    <b>S</b>teering), which bridges agentic reasoning and dexterous control through compiled task fields. Before
+    execution, the agent reasons about the instruction and the scene, compiling its decisions into a stateful potential
+    field over the policy's action space. At run time, the field evaluates each action chunk proposed by a frozen
+    visuomotor policy. It keeps chunks that make progress, corrects those that deviate from the agent's decisions, and
+    leaves the policy in full control near each target. With no agent queries in the control loop, execution remains
+    smooth while preserving the policy's reactivity and robustness during contact-rich manipulation. On four real-world
+    bimanual tasks, <span class="sc">C<small>OMPASS</small></span> improves the average success rate from 6.7% to 76.7%. Further
+    experiments highlight the complementary roles of agent reasoning and policy motor skills.</p>
+</section>
+
+<section class="wrap" id="contrib">
+  <h2>Contributions</h2>
+  <ol class="contribs">
+    <li><p><b>We propose <span class="sc">C<small>OMPASS</small></span>, which uses compiled task fields as an interface between agentic reasoning and frozen
+      visuomotor policies.</b> The interface carries task decisions and memory into closed-loop execution without online
+      VLM queries, while preserving the policy's local adaptability during contact-rich manipulation.</p></li>
+    <li><p><b>We conduct over 500 real-robot trials on four bimanual tasks with six agent models and four policies.</b>
+      <span class="sc">C<small>OMPASS</small></span> raises the average success rate from 6.7% to 76.7% and assembles a jigsaw puzzle among distractor pieces
+      in 11/15 trials, whereas no baseline exceeds 2/15.</p></li>
+    <li><p><b>By comparing agent models and policies, we characterize the complementary roles of reasoning and motor
+      skill in everyday manipulation.</b> Strong task reasoning cannot compensate for inadequate contact skills, while
+      precise motor execution alone does not ensure correct task completion.</p></li>
+  </ol>
+</section>
+
+<section class="wrap" id="method">
+  <h2>Method Overview</h2>
+  <figure class="fig wide">
+    <img src="static/img/overview.webp" alt="Overview: before execution the VLM agent compiles the instruction and initial image into a task field; at run time chunk selection keeps, corrects or hands over each policy chunk, and evidence updates the field state." loading="lazy">
+  </figure>
+  <div class="steps">
+    <div class="step"><span class="step-tag a">Offline compilation</span><h3>Task Field Synthesis</h3>
+      <p>Given the instruction and initial observation, the VLM agent reasons once before execution to compile a stateful task field—combining an action-space potential <span data-tex="V_z"></span> with a discrete stage and memory state <span data-tex="z"></span>.</p></div>
+    <div class="step"><span class="step-tag b">Closed-loop runtime</span><h3>Chunk Selection &amp; Correction</h3>
+      <p>Outside the target workspace, the field evaluates each action chunk proposed by the frozen policy, executing admissible chunks and replacing deviating ones via bounded gradient descent on <span data-tex="V_z"></span>.</p></div>
+    <div class="step"><span class="step-tag c">Contact-rich region</span><h3>Policy Workspace &amp; Transitions</h3>
+      <p>Within the target workspace <span data-tex="W_k"></span>, the policy retains full 6-DoF control for contact-rich manipulation. Stage transitions are triggered purely by measured physical evidence without online VLM queries.</p></div>
+  </div>
+</section>
+
+<section class="lab-wrap" id="try">
+  <div class="wrap">
+    <h2>Interactive Task Field</h2>
+    <p class="lede">Propose candidate action chunks in a 2D slice of the puzzle task field to inspect chunk selection (Eq. 3) and gradient-based field correction (Eq. 4).</p>
+    <ol class="p2d-how">
+      <li><b>Propose an action chunk</b>: Drag from the gripper to draw a candidate trajectory <span data-tex="A_t"></span>.</li>
+      <li><b>Chunk evaluation</b>: <b class="ok">Accepted</b> chunks are executed directly; <b class="bad">rejected</b> chunks are replaced by a <b class="cor">field correction</b> that steers the gripper to the boundary of the policy workspace <span data-tex="W_k"></span>.</li>
+      <li><b>Within the workspace</b>: Inside <span data-tex="W_k"></span> (dashed circle), the policy retains full control—terminate a chunk on the target handle (<b class="cor">next</b>) to grasp the piece, and on its target slot on the board to insert it.</li>
+      <li><b>Simulated policy</b>: Click <b>▶ Simulate policy</b> (top right) to observe how the field handles common policy failure modes (distractor drift, stalling, and workspace overshoot). Draw at any time to intervene manually.</li>
+    </ol>
+    <details class="p2d-more"><summary>Formulation of <span data-tex="V_z"></span>, <span data-tex="\Phi_z"></span>, and Chunk Admissibility (Eq. 3)</summary>
+      <p><span data-tex="V_z"></span> denotes the stage potential (combining quadratic target attraction and non-target repulsion), <span data-tex="\Phi_z"></span> is the repulsive barrier potential over non-target instances, and <span data-tex="\Delta V = V_z(a_{t+H}) - V_z(s_t)"></span> measures the net potential change across a chunk. Outside <span data-tex="W_k"></span>, a chunk is accepted iff <span data-tex="\Delta V \le \tau"></span> and <span data-tex="\max_n \Phi_z(\tilde a_n) \le \max(\epsilon, \Phi_z(s_t))"></span> (Eq. 3). Inside the dashed workspace <span data-tex="W_k"></span>, the policy acts unconstrained unless a chunk exits <span data-tex="W_k"></span> (repaired via bounded projection for minor overshoots, or re-queried for larger excursions).</p>
+    </details>
+  </div>
+  <div class="p2d" id="p2d">
+    <div class="p2d-top">
+      <button class="ctl autoplay" id="p2d-demo">▶ Simulate policy</button>
+      <button class="ctl" id="p2d-reset">Reset</button>
+    </div>
+    <div class="p2d-stage">
+      <div class="p2d-key" id="p2d-key" aria-label="Colour scale of the task field"></div>
+      <div class="p2d-cw">
+      <canvas aria-label="Puzzle table: draw an action chunk from the gripper"></canvas>
+      <div class="p2d-hint" id="p2d-hint"></div>
+      <div class="p2d-tip" id="p2d-tip" hidden></div>
+      </div>
+    </div>
+    <div class="p2d-bar">
+      <div class="p2d-verdict" id="p2d-verdict"></div>
+      <div class="p2d-checks">
+        <div class="row" id="p2d-c1"><span class="f" data-tex="V_z(a_{t+H}) - V_z(s_t) \le \tau"></span><span class="v" id="p2d-c1v">–</span></div>
+        <div class="row" id="p2d-c2"><span class="f" data-tex="\max_n \Phi_z(\tilde a_n) \le \max(\epsilon, \Phi_z(s_t))"></span><span class="v" id="p2d-c2v">–</span></div>
+      </div>
+      <div class="p2d-ctrl">
+        <div class="stages" id="p2d-stages"></div>
+        <div class="p2d-btns">
+          <div class="seg" role="group" aria-label="Field">
+            <button data-field="on" class="on">Field on</button>
+            <button data-field="off">Field off</button>
+          </div>
+          <button class="ctl" id="p2d-release" hidden>Release piece</button>
+        </div>
+      </div>
+    </div>
+    <div class="p2d-legend">
+      <span><i class="lg-goal"></i>goal and policy workspace</span>
+      <span><i class="lg-bad"></i>non-target region</span>
+      <span><i class="ln ok"></i>accepted</span>
+      <span><i class="ln rej"></i>rejected</span>
+      <span><i class="ln cor"></i>field correction</span>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="rollouts">
+  <h2>Real-Robot Rollouts</h2>
+  <p class="lede">Side-by-side evaluation across two test layouts per task using the identical frozen policy: <b>Base policy</b> (left) vs. <span class="sc">C<small>OMPASS</small></span> (right). Clips are synchronized to motion onset; baseline trials terminate upon their first unrecoverable task error. Clips play automatically once scrolled into view. On pack earphone and puzzle, the inset shows a synchronized close-up camera; click it to enlarge.</p>
+  <div class="ro-task" data-task="box">
+    <div class="ro-head"><h3><span class="cap">Instruction following</span>Pack box</h3>
+      <div class="ro-btns"><div class="seg ro-speed" role="group" aria-label="Playback speed"><button data-rate="0.5">½×</button><button data-rate="1" class="on">1×</button><button data-rate="2">2×</button><button data-rate="4">4×</button><button data-rate="8">8×</button><button data-rate="16">16×</button></div><button class="ctl" data-act="reset">Reset</button><button class="ctl primary" data-act="play">Play all</button></div></div>
+    <div class="ro-row"><p class="ro-prompt"><span>Layout 1</span>“Put the manual toothbrush, the electric toothbrush and the toothpaste in the box.”</p>
+      <figure class="ro-cell base"><div class="ro-vid" data-fail="Grasps unrequested distractor"><video data-src="media/rollouts/box_1_base.mp4" poster="media/rollouts/box_1_base.jpg" muted playsinline preload="none"></video>
+        <span class="ro-time">0.0 s</span><span class="ro-rt">real-time</span>
+          <div class="ro-bar" role="slider" aria-label="Seek" tabindex="0"><i class="ro-fill"></i><b class="ro-knob"></b></div></div><figcaption>Base policy</figcaption></figure>
+      <figure class="ro-cell ours"><div class="ro-vid"><video data-src="media/rollouts/box_1_ours.mp4" poster="media/rollouts/box_1_ours.jpg" muted playsinline preload="none"></video>
+        <span class="ro-time">0.0 s</span><span class="ro-rt">real-time</span>
+          <div class="ro-bar" role="slider" aria-label="Seek" tabindex="0"><i class="ro-fill"></i><b class="ro-knob"></b></div></div><figcaption><span class="sc">C<small>OMPASS</small></span></figcaption></figure>
+    </div>
+    <div class="ro-row"><p class="ro-prompt"><span>Layout 2</span>“Put the bread, the banana and the red pepper in the box.”</p>
+      <figure class="ro-cell base"><div class="ro-vid" data-fail="Grasps unrequested distractor"><video data-src="media/rollouts/box_2_base.mp4" poster="media/rollouts/box_2_base.jpg" muted playsinline preload="none"></video>
+        <span class="ro-time">0.0 s</span><span class="ro-rt">real-time</span>
+          <div class="ro-bar" role="slider" aria-label="Seek" tabindex="0"><i class="ro-fill"></i><b class="ro-knob"></b></div></div><figcaption>Base policy</figcaption></figure>
+      <figure class="ro-cell ours"><div class="ro-vid"><video data-src="media/rollouts/box_2_ours.mp4" poster="media/rollouts/box_2_ours.jpg" muted playsinline preload="none"></video>
+        <span class="ro-time">0.0 s</span><span class="ro-rt">real-time</span>
+          <div class="ro-bar" role="slider" aria-label="Seek" tabindex="0"><i class="ro-fill"></i><b class="ro-knob"></b></div></div><figcaption><span class="sc">C<small>OMPASS</small></span></figcaption></figure>
+    </div>
+  </div>
+  <div class="ro-task" data-task="earphone">
+    <div class="ro-head"><h3><span class="cap">Similar distractors</span>Pack earphone</h3>
+      <div class="ro-btns"><div class="seg ro-speed" role="group" aria-label="Playback speed"><button data-rate="0.5">½×</button><button data-rate="1" class="on">1×</button><button data-rate="2">2×</button><button data-rate="4">4×</button><button data-rate="8">8×</button><button data-rate="16">16×</button></div><button class="ctl" data-act="reset">Reset</button><button class="ctl primary" data-act="play">Play all</button></div></div>
+    <div class="ro-row"><p class="ro-prompt"><span>Layout 1</span>“Pack the blue earphones and the white earphones, each into its own case.”</p>
+      <figure class="ro-cell base"><div class="ro-vid" data-fail="Inserts earbud into mismatched case"><video data-src="media/rollouts/earphone_1_base.mp4" poster="media/rollouts/earphone_1_base.jpg" muted playsinline preload="none"></video>
+        <div class="ro-pip" role="button" tabindex="0" aria-label="Enlarge the close-up view"><video data-src="media/rollouts/earphone_1_base_close.mp4" poster="media/rollouts/earphone_1_base_close.jpg" muted playsinline preload="none"></video><i>Close-up</i></div>
+        <span class="ro-time">0.0 s</span><span class="ro-rt">real-time</span>
+          <div class="ro-bar" role="slider" aria-label="Seek" tabindex="0"><i class="ro-fill"></i><b class="ro-knob"></b></div></div><figcaption>Base policy</figcaption></figure>
+      <figure class="ro-cell ours"><div class="ro-vid"><video data-src="media/rollouts/earphone_1_ours.mp4" poster="media/rollouts/earphone_1_ours.jpg" muted playsinline preload="none"></video>
+        <div class="ro-pip" role="button" tabindex="0" aria-label="Enlarge the close-up view"><video data-src="media/rollouts/earphone_1_ours_close.mp4" poster="media/rollouts/earphone_1_ours_close.jpg" muted playsinline preload="none"></video><i>Close-up</i></div>
+        <span class="ro-time">0.0 s</span><span class="ro-rt">real-time</span>
+          <div class="ro-bar" role="slider" aria-label="Seek" tabindex="0"><i class="ro-fill"></i><b class="ro-knob"></b></div></div><figcaption><span class="sc">C<small>OMPASS</small></span></figcaption></figure>
+    </div>
+    <div class="ro-row"><p class="ro-prompt"><span>Layout 2</span>“Pack the blue earphones and the white earphones, each into its own case.”</p>
+      <figure class="ro-cell base"><div class="ro-vid" data-fail="Inserts earbud into mismatched case"><video data-src="media/rollouts/earphone_2_base.mp4" poster="media/rollouts/earphone_2_base.jpg" muted playsinline preload="none"></video>
+        <div class="ro-pip" role="button" tabindex="0" aria-label="Enlarge the close-up view"><video data-src="media/rollouts/earphone_2_base_close.mp4" poster="media/rollouts/earphone_2_base_close.jpg" muted playsinline preload="none"></video><i>Close-up</i></div>
+        <span class="ro-time">0.0 s</span><span class="ro-rt">real-time</span>
+          <div class="ro-bar" role="slider" aria-label="Seek" tabindex="0"><i class="ro-fill"></i><b class="ro-knob"></b></div></div><figcaption>Base policy</figcaption></figure>
+      <figure class="ro-cell ours"><div class="ro-vid"><video data-src="media/rollouts/earphone_2_ours.mp4" poster="media/rollouts/earphone_2_ours.jpg" muted playsinline preload="none"></video>
+        <div class="ro-pip" role="button" tabindex="0" aria-label="Enlarge the close-up view"><video data-src="media/rollouts/earphone_2_ours_close.mp4" poster="media/rollouts/earphone_2_ours_close.jpg" muted playsinline preload="none"></video><i>Close-up</i></div>
+        <span class="ro-time">0.0 s</span><span class="ro-rt">real-time</span>
+          <div class="ro-bar" role="slider" aria-label="Seek" tabindex="0"><i class="ro-fill"></i><b class="ro-knob"></b></div></div><figcaption><span class="sc">C<small>OMPASS</small></span></figcaption></figure>
+    </div>
+  </div>
+  <div class="ro-task" data-task="fruit">
+    <div class="ro-head"><h3><span class="cap">Long-horizon memory</span>Count fruit</h3>
+      <div class="ro-btns"><div class="seg ro-speed" role="group" aria-label="Playback speed"><button data-rate="0.5">½×</button><button data-rate="1" class="on">1×</button><button data-rate="2">2×</button><button data-rate="4">4×</button><button data-rate="8">8×</button><button data-rate="16">16×</button></div><button class="ctl" data-act="reset">Reset</button><button class="ctl primary" data-act="play">Play all</button></div></div>
+    <div class="ro-row"><p class="ro-prompt"><span>Layout 1</span>“Pack 2 corn, 2 red peppers, 1 banana, 1 cucumber and 1 avocado into the bag.”</p>
+      <figure class="ro-cell base"><div class="ro-vid" data-fail="Violates quota (extra cucumber, missing corn)"><video data-src="media/rollouts/fruit_1_base.mp4" poster="media/rollouts/fruit_1_base.jpg" muted playsinline preload="none"></video>
+        <span class="ro-time">0.0 s</span><span class="ro-rt">real-time</span>
+          <div class="ro-bar" role="slider" aria-label="Seek" tabindex="0"><i class="ro-fill"></i><b class="ro-knob"></b></div></div><figcaption>Base policy</figcaption></figure>
+      <figure class="ro-cell ours"><div class="ro-vid"><video data-src="media/rollouts/fruit_1_ours.mp4" poster="media/rollouts/fruit_1_ours.jpg" muted playsinline preload="none"></video>
+        <span class="ro-time">0.0 s</span><span class="ro-rt">real-time</span>
+          <div class="ro-bar" role="slider" aria-label="Seek" tabindex="0"><i class="ro-fill"></i><b class="ro-knob"></b></div></div><figcaption><span class="sc">C<small>OMPASS</small></span></figcaption></figure>
+    </div>
+    <div class="ro-row"><p class="ro-prompt"><span>Layout 2</span>“Pack 3 cucumbers and 3 mushrooms into the bag.”</p>
+      <figure class="ro-cell base"><div class="ro-vid" data-fail="Violates quota (extra kiwi, missing cucumber)"><video data-src="media/rollouts/fruit_2_base.mp4" poster="media/rollouts/fruit_2_base.jpg" muted playsinline preload="none"></video>
+        <span class="ro-time">0.0 s</span><span class="ro-rt">real-time</span>
+          <div class="ro-bar" role="slider" aria-label="Seek" tabindex="0"><i class="ro-fill"></i><b class="ro-knob"></b></div></div><figcaption>Base policy</figcaption></figure>
+      <figure class="ro-cell ours"><div class="ro-vid"><video data-src="media/rollouts/fruit_2_ours.mp4" poster="media/rollouts/fruit_2_ours.jpg" muted playsinline preload="none"></video>
+        <span class="ro-time">0.0 s</span><span class="ro-rt">real-time</span>
+          <div class="ro-bar" role="slider" aria-label="Seek" tabindex="0"><i class="ro-fill"></i><b class="ro-knob"></b></div></div><figcaption><span class="sc">C<small>OMPASS</small></span></figcaption></figure>
+    </div>
+  </div>
+  <div class="ro-task" data-task="puzzle">
+    <div class="ro-head"><h3><span class="cap">Spatial planning</span>Puzzle</h3>
+      <div class="ro-btns"><div class="seg ro-speed" role="group" aria-label="Playback speed"><button data-rate="0.5">½×</button><button data-rate="1" class="on">1×</button><button data-rate="2">2×</button><button data-rate="4">4×</button><button data-rate="8">8×</button><button data-rate="16">16×</button></div><button class="ctl" data-act="reset">Reset</button><button class="ctl primary" data-act="play">Play all</button></div></div>
+    <div class="ro-row"><p class="ro-prompt"><span>Layout 1</span>“Complete the lion puzzle using only its own pieces.”</p>
+      <figure class="ro-cell base"><div class="ro-vid" data-fail="Grasps incompatible distractor piece"><video data-src="media/rollouts/puzzle_1_base.mp4" poster="media/rollouts/puzzle_1_base.jpg" muted playsinline preload="none"></video>
+        <div class="ro-pip" role="button" tabindex="0" aria-label="Enlarge the close-up view"><video data-src="media/rollouts/puzzle_1_base_close.mp4" poster="media/rollouts/puzzle_1_base_close.jpg" muted playsinline preload="none"></video><i>Close-up</i></div>
+        <span class="ro-time">0.0 s</span><span class="ro-rt">real-time</span>
+          <div class="ro-bar" role="slider" aria-label="Seek" tabindex="0"><i class="ro-fill"></i><b class="ro-knob"></b></div></div><figcaption>Base policy</figcaption></figure>
+      <figure class="ro-cell ours"><div class="ro-vid"><video data-src="media/rollouts/puzzle_1_ours.mp4" poster="media/rollouts/puzzle_1_ours.jpg" muted playsinline preload="none"></video>
+        <div class="ro-pip" role="button" tabindex="0" aria-label="Enlarge the close-up view"><video data-src="media/rollouts/puzzle_1_ours_close.mp4" poster="media/rollouts/puzzle_1_ours_close.jpg" muted playsinline preload="none"></video><i>Close-up</i></div>
+        <span class="ro-time">0.0 s</span><span class="ro-rt">real-time</span>
+          <div class="ro-bar" role="slider" aria-label="Seek" tabindex="0"><i class="ro-fill"></i><b class="ro-knob"></b></div></div><figcaption><span class="sc">C<small>OMPASS</small></span></figcaption></figure>
+    </div>
+    <div class="ro-row"><p class="ro-prompt"><span>Layout 2</span>“Complete the strawberry puzzle using only its own pieces.”</p>
+      <figure class="ro-cell base"><div class="ro-vid" data-fail="Grasps incompatible distractor piece"><video data-src="media/rollouts/puzzle_2_base.mp4" poster="media/rollouts/puzzle_2_base.jpg" muted playsinline preload="none"></video>
+        <div class="ro-pip" role="button" tabindex="0" aria-label="Enlarge the close-up view"><video data-src="media/rollouts/puzzle_2_base_close.mp4" poster="media/rollouts/puzzle_2_base_close.jpg" muted playsinline preload="none"></video><i>Close-up</i></div>
+        <span class="ro-time">0.0 s</span><span class="ro-rt">real-time</span>
+          <div class="ro-bar" role="slider" aria-label="Seek" tabindex="0"><i class="ro-fill"></i><b class="ro-knob"></b></div></div><figcaption>Base policy</figcaption></figure>
+      <figure class="ro-cell ours"><div class="ro-vid"><video data-src="media/rollouts/puzzle_2_ours.mp4" poster="media/rollouts/puzzle_2_ours.jpg" muted playsinline preload="none"></video>
+        <div class="ro-pip" role="button" tabindex="0" aria-label="Enlarge the close-up view"><video data-src="media/rollouts/puzzle_2_ours_close.mp4" poster="media/rollouts/puzzle_2_ours_close.jpg" muted playsinline preload="none"></video><i>Close-up</i></div>
+        <span class="ro-time">0.0 s</span><span class="ro-rt">real-time</span>
+          <div class="ro-bar" role="slider" aria-label="Seek" tabindex="0"><i class="ro-fill"></i><b class="ro-knob"></b></div></div><figcaption><span class="sc">C<small>OMPASS</small></span></figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="results">
+  <h2>Experiments</h2>
+  <p class="lede">We evaluate <span class="sc">C<small>OMPASS</small></span> on four real-world bimanual tasks, each on the same 15 random test layouts with one trial per layout. The policy is kept frozen in all experiments.</p>
+
+  <h3 class="sub"><span class="q">Q1</span>Which capabilities does the task field add to a frozen policy?</h3>
+  <div class="rows">
+    <div class="rrow"><div class="rkey"><span class="rtag">Instruction following</span><h4>Pack box</h4><div class="rmetric"><span class="from">0</span>→<span class="to">12</span><small>/15</small></div></div><p>The agent grounds each requested object to its 3D instance and guides the arm through the specified sequence.</p></div>
+    <div class="rrow"><div class="rkey"><span class="rtag">Robustness to similar distractors</span><h4>Pack earphone</h4><div class="rmetric"><span class="from">3</span>→<span class="to">11</span><small>/15</small></div></div><p>The ledger binds earbuds to their respective sets, and the field rejects 62 chunks drifting toward same-color distractors.</p></div>
+    <div class="rrow"><div class="rkey"><span class="rtag">Long-horizon memory</span><h4>Count fruit</h4><div class="rmetric"><span class="from">1</span>→<span class="to">12</span><small>/15</small></div></div><p>Although packed items are occluded inside the deep bag, the memory ledger tracks category quotas and updates non-target regions upon each confirmed release.</p></div>
+    <div class="rrow"><div class="rkey"><span class="rtag">Spatial planning</span><h4>Puzzle</h4><div class="rmetric"><span class="from">0</span>→<span class="to">11</span><small>/15</small></div></div><p>The agent determines the assembly sequence relative to the anchor piece while the field repels the arm from incompatible distractor pieces.</p></div>
+  </div>
+  <p class="capnote">Number of successful trials out of 15 (Base policy → <span class="sc">C<small>OMPASS</small></span>, evaluated with the same frozen visuomotor policy).</p>
+
+  <h3 class="sub"><span class="q">Q2</span>How does <span class="sc">C<small>OMPASS</small></span> compare in success and speed with other paradigms for bridging agentic reasoning and motor control?</h3>
+  <div class="chart-card">
+    <div class="chart-head">
+      <div class="seg" role="group" aria-label="Metric">
+        <button class="on" data-metric="sr">Success (of 15)</button>
+        <button data-metric="prog">Progress (%)</button>
+      </div>
+      <div class="legend" id="legend-main"></div>
+    </div>
+    <div id="chart-main" class="chart"></div>
+  </div>
+  <div class="rows">
+    <div class="rrow"><div class="rkey"><span class="rtag">VoxPoser</span><h4>Fine manipulation still requires a learned visuomotor policy.</h4><div class="rmetric">0/60</div></div><p>Open-loop motion planning over VLM value maps lacks the contact precision required to insert an earbud or fit a puzzle piece.</p></div>
+    <div class="rrow"><div class="rkey"><span class="rtag">Online agent</span><h4>Querying a VLM at every action chunk is prohibitive on hardware.</h4><div class="rmetric">0/60</div></div><p>At ~25 s per online VLM query, closed-loop intervention stalls execution and exhausts the 20-minute trial timeout.</p></div>
+    <div class="rrow"><div class="rkey"><span class="rtag"><span class="sc">C<small>OMPASS</small></span>-waypoint</span><h4>One-shot waypoint handoff leaves the policy unchecked.</h4><div class="rmetric">17/60</div></div><p>Releasing control after a single pre-grasp waypoint leaves the policy unconstrained against nearby distractors and already-counted items.</p></div>
+    <div class="rrow"><div class="rkey"><span class="rtag">Execution time</span><h4>Closed-loop field evaluation adds negligible runtime overhead.</h4><div class="rmetric">17.7 s <small>vs.</small> 18.3 s</div></div><p>On count fruit, <span class="sc">C<small>OMPASS</small></span> matches the base policy's execution time per completed sub-goal while raising success from 1/15 to 12/15.</p></div>
+  </div>
+
+  <h3 class="sub"><span class="q">Q3</span>Does success require both a capable agent and a capable policy?</h3>
+  <div class="stack">
+    <div class="rows">
+      <div class="rrow"><div class="rkey"><span class="rtag">Agent model</span><h4>Stronger spatial and task reasoning improves field quality.</h4></div><p>GPT-6-Astra and GPT-6.1-Sol achieve 11/15 and 10/15 success on pack earphone, whereas weaker models struggle with fine instance bindings and goal placement.</p></div>
+      <div class="rrow"><div class="rkey"><span class="rtag">Visuomotor policy</span><h4>Task fields cannot substitute for contact-rich motor skills.</h4></div><p>Because the field governs pre-contact approach and delegates grasping and insertion to the policy, pairing <span class="sc">C<small>OMPASS</small></span> with ACT (0/15) fails during physical contact.</p></div>
+    </div>
+    <div class="table-wrap">
+      <table class="tbl agents">
+        <thead><tr><th>Agent Model <span class="muted">(Pack earphone, XR1 policy)</span></th><th>Success Rate</th><th>API Cost / Compilation</th></tr></thead>
+        <tbody id="agent-rows"></tbody>
+      </table>
+    </div>
+    <div class="chart-card flat">
+      <div class="two tight">
+        <div><div class="chart-title">Count fruit</div><div id="chart-policy-fruit" class="chart"></div></div>
+        <div><div class="chart-title">Pack earphone</div><div id="chart-policy-earphone" class="chart"></div></div>
+      </div>
+      <div class="legend small" id="legend-policy"></div>
+    </div>
+  </div>
+
+  <h3 class="sub"><span class="q">Q4</span>Given the same high-level plan, which interface best guides the policy?</h3>
+  <div class="chart-card">
+    <div class="chart-head"><div class="legend" id="legend-iface"></div></div>
+    <div class="two tight">
+      <div><div class="chart-title">Success (of 15)</div><div id="chart-iface-sr" class="chart"></div></div>
+      <div><div class="chart-title">Progress (%)</div><div id="chart-iface-prog" class="chart"></div></div>
+    </div>
+  </div>
+  <div class="rows">
+    <div class="rrow"><div class="rkey"><span class="rtag"><span class="sc">C<small>OMPASS</small></span>-language</span><h4>Language subgoals alone do not prevent trajectory drift.</h4><div class="rmetric">0/30</div></div><p>Updating text prompts at stage transitions does not constrain low-level execution against drifting toward nearby distractors.</p></div>
+  </div>
+</section>
+
+<section class="wrap" id="bibtex">
+  <h2>BibTeX</h2>
+  <div class="bib">
+    <button class="copy" id="copy-bib" type="button">Copy</button>
+<pre id="bib-text">@article{han2026compass,
+  title   = {{COMPASS}: Bridging Agentic Reasoning and Dexterous Policies via Compiled Task Fields},
+  author  = {Han, Xiaoshen and Cao, Jiahang and Li, Xinghang and Kong, Tao and Lai, Hang and Zhang, Weinan},
+  journal = {arXiv preprint arXiv:XXXX.XXXXX},
+  year    = {2026}
+}</pre>
+  </div>
+</section>
+
+<footer class="wrap footer">
+  <p>All rollouts are recorded on physical robots; playback speed multipliers are indicated on accelerated segments.</p>
+</footer>
+
+<script src="static/vendor/katex/katex.min.js"></script>
+<script src="static/js/main.js?v=r48"></script>
+<script src="static/js/puzzle2d.js?v=r44"></script>
+</body>
+</html>

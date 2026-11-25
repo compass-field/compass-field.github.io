@@ -1,0 +1,236 @@
+{
+ "source": "photo of the completed tiger cut into one piece per peg; lion and panda from the scene photo",
+ "table_cm": [
+  80.0,
+  50.0
+ ],
+ "board": {
+  "sprite": "board.png",
+  "pos": [
+   5.0,
+   11.0
+  ],
+  "size": [
+   22.717,
+   26.141
+  ]
+ },
+ "stage_order": [
+  "mouth",
+  "ear",
+  "strip",
+  "body",
+  "tail"
+ ],
+ "tolerance_cm": 4.0,
+ "clearance_cm": 0.8,
+ "barrier_weight": 2.0,
+ "home": [
+  74.0,
+  44.0
+ ],
+ "pieces": [
+  {
+   "id": "anchor",
+   "role": "anchor",
+   "sprite": "piece_anchor.webp",
+   "size": [
+    9.402,
+    15.027
+   ],
+   "peg": [
+    4.266,
+    5.761
+   ],
+   "fit": [
+    4.891,
+    11.0
+   ],
+   "adj": [
+    "ear",
+    "mouth",
+    "strip"
+   ],
+   "stage": null,
+   "start": [
+    4.891,
+    11.0
+   ]
+  },
+  {
+   "id": "ear",
+   "role": "target",
+   "sprite": "piece_ear.webp",
+   "size": [
+    9.375,
+    9.103
+   ],
+   "peg": [
+    5.462,
+    3.505
+   ],
+   "fit": [
+    12.255,
+    10.891
+   ],
+   "adj": [
+    "anchor",
+    "mouth"
+   ],
+   "stage": 1,
+   "start": [
+    66.5,
+    2.5
+   ]
+  },
+  {
+   "id": "mouth",
+   "role": "target",
+   "sprite": "piece_mouth.webp",
+   "size": [
+    11.549,
+    7.418
+   ],
+   "peg": [
+    4.647,
+    3.56
+   ],
+   "fit": [
+    10.707,
+    16.978
+   ],
+   "adj": [
+    "anchor",
+    "body",
+    "ear",
+    "strip"
+   ],
+   "stage": 0,
+   "start": [
+    34.0,
+    2.0
+   ]
+  },
+  {
+   "id": "body",
+   "role": "target",
+   "sprite": "piece_body.webp",
+   "size": [
+    13.75,
+    10.109
+   ],
+   "peg": [
+    5.815,
+    2.908
+   ],
+   "fit": [
+    14.076,
+    22.522
+   ],
+   "adj": [
+    "mouth",
+    "strip",
+    "tail"
+   ],
+   "stage": 3,
+   "start": [
+    63.5,
+    16.0
+   ]
+  },
+  {
+   "id": "strip",
+   "role": "target",
+   "sprite": "piece_strip.webp",
+   "size": [
+    8.641,
+    13.315
+   ],
+   "peg": [
+    3.424,
+    3.913
+   ],
+   "fit": [
+    7.473,
+    23.935
+   ],
+   "adj": [
+    "anchor",
+    "body",
+    "mouth",
+    "tail"
+   ],
+   "stage": 2,
+   "start": [
+    34.0,
+    16.0
+   ]
+  },
+  {
+   "id": "tail",
+   "role": "target",
+   "sprite": "piece_tail.webp",
+   "size": [
+    16.06,
+    8.424
+   ],
+   "peg": [
+    5.489,
+    4.185
+   ],
+   "fit": [
+    11.603,
+    28.799
+   ],
+   "adj": [
+    "body",
+    "strip"
+   ],
+   "stage": 4,
+   "start": [
+    36.0,
+    36.0
+   ]
+  },
+  {
+   "id": "lion",
+   "role": "distractor",
+   "sprite": "piece_lion.webp",
+   "size": [
+    13.071,
+    8.533
+   ],
+   "peg": [
+    3.867,
+    3.614
+   ],
+   "fit": null,
+   "adj": [],
+   "stage": null,
+   "start": [
+    49.0,
+    2.0
+   ]
+  },
+  {
+   "id": "panda",
+   "role": "distractor",
+   "sprite": "piece_panda.webp",
+   "size": [
+    11.277,
+    12.283
+   ],
+   "peg": [
+    6.581,
+    6.929
+   ],
+   "fit": null,
+   "adj": [],
+   "stage": null,
+   "start": [
+    49.5,
+    17.0
+   ]
+  }
+ ]
+}
